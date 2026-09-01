@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  WORKER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  role          Role      @default(CUSTOMER)
+  phone         String?
+  avatarUrl     String?
+  
+  walletBalance Float     @default(0.0)
+  coopShares    Float     @default(0.0)
+  isVerified    Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  bookingsMade      Booking[]  @relation("CustomerBookings")
+  bookingsAccepted  Booking[]  @relation("WorkerBookings")
+  votes             Vote[]
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  description String
+  basePrice   Float
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  bookings    Booking[]
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  customerId    String
+  workerId      String?
+  serviceId     String
+  
+  status        BookingStatus @default(PENDING)
+  scheduledDate DateTime
+  
+  totalAmount   Float
+  workerPayout  Float
+  platformFee   Float
+  communityFund Float
+  
+  location      String
+  notes         String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  customer      User          @relation("CustomerBookings", fields: [customerId], references: [id])
+  worker        User?         @relation("WorkerBookings", fields: [workerId], references: [id])
+  service       Service       @relation(fields: [serviceId], references: [id])
+}
+
+model CooperativeProposal {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  isActive    Boolean  @default(true)
+  
+  createdAt   DateTime @default(now())
+  votes       Vote[]
+}
+
+model Vote {
+  id         String   @id @default(cuid())
+  userId     String
+  proposalId String
+  choice     Boolean
+  
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id])
+  proposal   CooperativeProposal @relation(fields: [proposalId], references: [id])
+
+  @@unique([userId, proposalId])
+}
